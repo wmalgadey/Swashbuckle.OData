@@ -19,7 +19,26 @@ namespace Swashbuckle.OData.Tests
     public class SchemaTests
     {
         [Test]
-        public async Task Schema_does_not_contain_nested_reference_types_for_odata_controllers()
+        public async Task Schema_can_be_configured_to_display_nested_reference_types_for_odata_controllers()
+        {
+            using (WebApp.Start(HttpClientUtils.BaseAddress, appBuilder => Configuration(appBuilder, typeof(CustomersController), oc => oc.IncludeNavigationProperties())))
+            {
+                // Arrange
+                var httpClient = HttpClientUtils.GetHttpClient(HttpClientUtils.BaseAddress);
+
+                // Act
+                var swaggerDocument = await httpClient.GetJsonAsync<SwaggerDocument>("swagger/docs/v1");
+
+                // Assert
+                swaggerDocument.definitions["Customer"].properties.ContainsKey("Orders").Should().BeTrue();
+                swaggerDocument.definitions["Order"].properties.ContainsKey("Customer").Should().BeTrue();
+
+                await ValidationUtils.ValidateSwaggerJson();
+            }
+        }
+
+        [Test]
+        public async Task By_default_the_schema_does_not_contain_nested_reference_types_for_odata_controllers()
         {
             using (WebApp.Start(HttpClientUtils.BaseAddress, appBuilder => Configuration(appBuilder, typeof(CustomersController))))
             {
@@ -55,9 +74,9 @@ namespace Swashbuckle.OData.Tests
             }
         }
 
-        private static void Configuration(IAppBuilder appBuilder, Type targetController)
+        private static void Configuration(IAppBuilder appBuilder, Type targetController, Action<ODataSwaggerDocsConfig> odataSwaggerDocsConfig = null)
         {
-            var config = appBuilder.GetStandardHttpConfig(targetController);
+            var config = appBuilder.GetStandardHttpConfig(null, odataSwaggerDocsConfig, targetController);
 
             WebApiConfig.Register(config);
 
